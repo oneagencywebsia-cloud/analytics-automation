@@ -1,0 +1,44 @@
+name: Daily Analytics to Telegram
+
+on:
+  schedule:
+    - cron: '0 15 * * *'  # 5pm España (UTC+2 verano)
+  workflow_dispatch:
+
+jobs:
+  analytics:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create OAuth tokens file
+        run: |
+          cat > ga_oauth_tokens.json << 'EOF'
+          ${{ secrets.GA_OAUTH_TOKENS }}
+          EOF
+
+      - name: Run analytics script
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python analytics_github.py
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: error-logs
+          retention-days: 7
